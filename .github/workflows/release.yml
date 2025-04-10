@@ -1,0 +1,47 @@
+name: Build Plugin Zip File
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        tools: composer:v2
+
+    - name: Build
+      run: |
+        composer install --quiet --no-dev --optimize-autoloader
+        
+    - name: Create build archive
+      run: |
+        mkdir -p wp2static-addon-netlify
+        rsync -r \
+          --include="/*.php" \
+          --include="/src/" \
+          --include="/src/**" \
+          --include="/views/" \
+          --include="/views/**" \
+          --include="/vendor/" \
+          --include="/vendor/**" \
+          --exclude="*" \
+          ./ wp2static-addon-netlify/
+        find wp2static-addon-netlify -type d -exec chmod 755 {} \;
+        find wp2static-addon-netlify -type f -exec chmod 644 {} \;
+        zip --quiet -r -9 -X wp2static-addon-netlify.zip wp2static-addon-netlify
+        
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: wp2static-addon-netlify.zip
+        generate_release_notes: true
